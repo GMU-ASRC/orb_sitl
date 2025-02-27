@@ -1,0 +1,452 @@
+/*
+Controlled by: Office of Naval Research
+ Controlled by: Code 34
+ CUI Category: CTI
+Limited Dissemination Control: DISTRIBUTION STATEMENT D. Distribution authorized to Department of Defense and U.S. DoD contractors only (CRITICAL TECHNOLOGY) (11 JAN 2021). Other requests for this document shall be referred to Office of Naval Research, Code34.
+*/ 
+
+syntax = "proto3";
+
+/*
+  Message definitions for EPU robotics systems
+*/
+
+package epu;
+option java_package = "comms.epu";
+
+message Vec3 {
+	float north = 1;
+	float east = 2;
+	float down = 3;
+}
+message LLA {
+	double lat_d = 1;
+	double lon_d = 2;
+	double alt_m = 3;
+}
+
+message Pose {
+	float yaw_r = 1;
+	float pitch_r = 2;
+	float roll_r = 3;
+	Vec3 pos_ned = 4;
+	Vec3 vel_ned = 5;
+	Vec3 acc_ned = 6;
+}
+
+enum RemoteSteerMode{
+	BODY_RELATIVE = 0;
+	COMPASS_RELATIVE = 1;
+}
+
+enum FormationType {
+	A = 0;
+	B = 1;
+	C = 2;
+	D = 3;
+	E = 4;
+	F = 5;
+	G = 6;
+	H = 7;
+	I = 8;
+	J = 9;
+	K = 10;
+	L = 11;
+	M = 12;
+	N = 13;
+	O = 14;
+	P = 15;
+	Q = 16;
+	R = 17;
+	S = 18;
+	T = 19;
+	U = 20;
+	V = 21;
+	W = 22;
+	X = 23;
+	Y = 24;
+	Z = 25;
+	LINE = 26;
+	CIRCLE = 27;
+	TRIANGLE = 28;
+	VEE = 29;
+	SQUARE = 30;
+	WEDGE = 31;
+	DIAMOND = 32;
+	ECHELON_LEFT = 33;
+	ECHELON_RIGHT = 34;
+	FILE = 35;
+	STAGGERED_COLUMN = 36;
+	UP_ARROW = 37;
+	DOWN_ARROW = 38;
+	LEFT_ARROW = 39;
+	RIGHT_ARROW = 40;
+}
+
+enum ControlPointType{
+	GEODETIC = 0;
+	MGRS = 1;
+	LOCAL = 2;
+	EGOCENTRIC = 3;
+}
+
+enum BodyRelativeCmd{
+	TRANSLATE_VERTICAL = 0;
+	TRANSLATE_FWD_BCK = 1;
+	TRANSLATE_LFT_RGT = 2;
+	ROTATE_YAW = 3;
+	ROTATE_PITCH = 4;
+	ROTATE_ROW = 5;
+}
+
+enum DistributeMode{
+	DISTRIBUTE_REGION = 0;
+	DISTRIBUTE_PERIMETER = 1;
+	DISTRIBUTE_VOLUME = 2;
+	DISTRIBUTE_POLYLINE = 3;
+}
+
+message ControlPoint {
+	// required: specify types of control point
+	ControlPointType ctrl_pt_type = 1;
+
+	// required if using GEODETIC mode, define location in LLA
+	LLA pos_lla = 2;
+
+	// required if using MGRS mode, defines the grid as a string
+	string mgrs = 3;
+
+	// required if using LOCAL mode, define NED in vehicle frame
+	Vec3 pos_ned = 4;
+
+	// required if using EGOCENTRIC mode, define movement relative to vehicle body frame
+	BodyRelativeCmd body_rel_cmd = 5;
+
+	// optional: define velocity to be achieved at control point
+	Vec3 vel_ned = 6;
+
+	// optional: define action after control point has been achieved
+	ControlPointAction action = 7;
+
+	// optional: used to define desired heading at the control point
+	float hdg_deg = 8;
+
+	int32 translation_cmd_increment_m = 9;
+	int32 rotation_cmd_increment_deg = 10;
+}
+
+message Line {
+	LLA start_pt = 1;
+	LLA end_pt = 2;
+}
+
+message Circle {
+	LLA origin = 1;
+	double radius =2;
+}
+
+/*
+Tasks that can be sent to the agent
+*/
+enum TaskType {
+	TASK_IDLE = 0;  		// default idle state
+	TASK_LAND = 1;			// execute landing
+	TASK_POS_HOLD = 2;		// execute loiter in place
+	TASK_PATROL = 3;        // execute a specified set of control points
+	TASK_GOTO = 4;          // navigate to a specified location or bearing
+	TASK_RETURN = 5;        // navigate to rally point (if set), or return to launch location
+	TASK_SET_RALLY_PT = 6;	// set rally point
+	TASK_LAUNCH = 7;		// execute takeoff
+	TASK_PULSATE = 8;       // collective behavior with pulsating trajectories
+	TASK_SET_GEOFENCE = 10; // set polygon geofence
+	TASK_REMOTE_STEER = 11;	// allow remote source to provide direct steering input
+	TASK_LEADER_FOLLOW = 12;// follow a designated leader
+	TASK_DISTRIBUTE = 13;	// collective behavior to distribute across a given region
+	TASK_FORMATION = 14; 	// collective behavior to form a given shape
+	TASK_TELEOP = 15;	    // enable remote tele-operation
+	TASK_GET_GEOFENCE = 16; // get active genfence
+}
+
+/*
+Task specific parameters
+*/
+message Distribute_Task_Params{
+	// option 1: circular region defined by centroid and radius
+	Circle circular_region = 1;
+
+	// option 2: polygon region
+	repeated LLA polygon_region = 2;
+
+	// distribute options
+	DistributeMode distribute_mode = 3;
+	double alt_m = 4;
+	double min_alt_m = 5;
+	double max_alt_m = 6;
+	bool land_on_complete = 7;
+}
+
+message Leader_Follow_Task_Params{
+	// required: designate leader to be followed
+	string leader_id = 1;
+
+	// optional: specify position offset relative to leader in NED
+	Vec3 offset_m = 2;
+}
+
+message Return_Task_Params{
+	// optional: land at the requested location upon task completion
+	bool land_on_completion = 1;
+}
+
+message Remote_Steer_Task_Params{
+	// required: defines the steering mode
+	RemoteSteerMode steer_mode = 1;
+
+	// required if using COMPASS_RELATIVE mode, specify target bearing relative to north
+	double set_bearing_deg = 2;
+
+	// required if using BODY_RELATIVE mode, defines target azimuth relative to the vehicle optics
+	double set_azimuth_deg = 3;
+
+	// optional: specify desired altitude
+	double set_altitude_m = 4;
+
+	// optional: specify desired ground speed
+	double set_gnd_spd_mps = 5;
+}
+
+message TeleopCommand{
+	uint64 server_ts_us = 1;
+	string teleop_src = 2;
+	repeated bool button_states = 3;
+	repeated int32 axis_states = 4;
+}
+
+message Formation_Task_Params{
+		// required: defines types of formation
+	FormationType formation_type = 1;
+
+	// optional: define leader of the formation
+	string leader_id = 2;
+
+	// required: defines center of formation
+	ControlPoint centroid = 3;
+
+	// optional: between 1-100
+	int32 scale_factor = 4;
+
+	// optional: rotate formation to point in the direction of motion
+	bool match_heading = 5;
+}
+
+message Goto_Task_Params {
+	// required: specify target location in LLA if using GotoMode::GEODETIC
+	ControlPoint tgt_pos = 1;
+
+	// optional: return to launch location upon task completion
+	bool return_on_completion = 2;
+
+	// optional: land at the requested location upon task completion
+	bool land_on_completion = 3;
+
+	// optional: randomized path to target
+	bool randomized_trajectory = 4;
+}
+
+message Patrol_Task_Params {
+	// required: specifies a list of control points to achieve
+	repeated ControlPoint tgt_route = 1;
+
+	// optional: return to launch location upon task completion
+	bool return_on_completion = 2;
+
+	// optional: land at the requested location upon task completion
+	bool land_on_completion = 3;
+
+	// optional: time limit for task execution
+	int32 timeout_s = 4;
+}
+
+message Pulsate_Task_Params {
+	// required: point of contraction
+	ControlPoint attack_pt = 1;
+
+	// optional: control frequency of the pulsation
+	int32 pulsate_period_s = 2;
+
+	// optional: min distance to point of attack
+	int32 inner_radius_m = 3;
+
+	// optional: max distance to point of attack
+	int32 outter_radius_m = 4;
+
+	// optional: time limit for task execution
+	int32 timeout_s = 5;
+}
+
+message Set_Rally_Pt_Task_Params {
+	LLA rally_pt = 1;		// specify a rally point (lat/lon)
+}
+
+message Set_GeoFence_Task_Params {
+	repeated LLA polygon_fence = 1;  // description of a polygon region
+}
+
+enum ControlPointAction {
+	DO_DEPLOY_PAYLOAD = 0;
+	DO_LAND = 1;
+	DO_POS_HOLD = 2;
+	DO_RETURN = 3;
+	DO_HDG_HOLD = 4;
+}
+
+enum AutopilotMode {
+	UNKNOWN = 0;
+	MANUAL = 1;
+	AUTO = 2;
+	LOITER = 3;
+	RTL = 4;
+	LAND = 5;
+	OFFBOARD = 6;
+	ABORT = 7;
+}
+
+enum TaskStatus {
+	EXECUTING = 0;
+	COMPLETE = 1;
+	FAILED = 2;
+}
+
+enum ArmState {
+	UNINIT = 0;
+	DISARMED = 1;
+	ARMED = 2;
+	CRITICAL = 3;
+}
+
+enum PlatformType{
+	JAWBREAKER = 0;
+	HORRIS = 1;
+	DAMOCLES = 2;
+	ARIELS = 3;
+}
+
+message TaskState {
+	// status of the current task
+	TaskStatus task_status = 1;
+
+	// type of the current active task
+	TaskType task_type = 2;
+}
+
+// navigation state
+message NavState {
+	// orientation, velocity and acceleration
+	Pose pose = 1;
+
+	// location in latitude and longitude
+	LLA pos_lla = 2;
+
+	// altitude from ground
+	float rel_alt_m = 3;
+
+	// measured heading
+	float hdg_d = 5;
+
+	// origin, location of where GPS was first acquired
+	LLA origin_lla = 6;
+
+	// points along a generated trajectory
+	repeated ControlPoint planned_traj = 10;
+
+	// points commanded by user
+	repeated ControlPoint commanded_control_pt = 11;
+
+	// active geofence
+	repeated LLA polygon_fence = 12;  
+
+	// active distribute region
+	repeated LLA distr_region = 13;
+}
+
+// vehicle health & status
+message VehicleState {
+	ArmState arm_state = 1;
+	uint32 flight_time_s = 2;
+	float hdop = 4;
+	float battery_voltage = 5;
+	uint32 num_of_sat = 6;
+	AutopilotMode ap_mode = 7;
+	bool has_geo_fence = 8;
+}
+
+/*
+  Status contains comprehensive agent data such as task status, navigation state and
+  system health & status.  It is published by each agent.
+*/
+message Status {
+	// agent that created this status
+	string creator = 1;
+
+	// creation time based on agent time (ms time since epoch)
+	uint64 ts_ms = 2;
+
+	// navigation state (pos, vel, hdg etc.)
+	NavState nav_state = 3;
+
+	// platform health & status
+	VehicleState vehicle_state = 4;
+
+	// status of the current task
+	TaskState task_state = 5;
+
+	// type of platform
+	PlatformType platform_type = 6;
+}
+
+/*
+  Task contains information required for each agent to perform the requested task. The creator field
+  can be used by the agents to filter the taskign source and determine if the task is accepted.  The applies_to
+  field can be used as a filter to designate a single or multiple agents for the task. The task type specifics the
+  type of task, accompanied by the corresponding task specific parameters
+*/
+message Task {
+	// required: identifies the source of the task
+	string creator = 1;
+
+	// required: identifies the target for the task, e.g. set to {"jb_1", "jb_2"} to command agent 1 & 2 or {"jb_all"} for all agent
+	repeated string applies_to = 2;
+
+	// optional: creation time, can be used to reject expired tasking
+	uint64 ts_ms = 3;
+
+	// required: identifies the requsted task
+	TaskType task_type = 4;
+
+	// required: populate based on task type, exceptions are TASK_LAND, TASK_RETURN, and TASK_LAUNCH
+	Goto_Task_Params goto_task_params = 5;
+	Patrol_Task_Params patrol_task_params = 6;
+	Pulsate_Task_Params pulsate_task_params = 7;
+	Set_Rally_Pt_Task_Params set_rally_pt_task_params = 8;
+	Set_GeoFence_Task_Params set_geo_fence_task_params = 9;
+	Leader_Follow_Task_Params leader_follow_task_params = 10;
+	Formation_Task_Params formation_task_params = 11;
+	Distribute_Task_Params distribute_task_params = 12;
+	Remote_Steer_Task_Params remote_steer_task_params = 13;
+	Return_Task_Params return_task_params= 14;
+}
+
+/*
+  Message is bidirectional supporting both sending commands to agents and
+  receiving status from agents
+*/
+message Message {
+	// populated by each agent
+	repeated Status status = 1;
+
+	// populated by tasking source
+	repeated Task task = 2;
+
+    // populated by teleoperation source
+	repeated TeleopCommand teleop_cmd = 3;
+}

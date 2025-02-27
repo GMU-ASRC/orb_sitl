@@ -1,0 +1,92 @@
+###Loading Docker###
+docker load < orb-sim-docker.tar
+
+###Running Docker
+docker run -it --net=host orbs-sim-docker:latest /bin/bash
+
+###Running The Sim###
+- run "./launch_robot.sh" to spawn a single agent
+- run "./launch_swarm.sh 3" to spawn 3 agents
+
+###Configure Networking###
+*UDP Multicast is the default method to communicate with the sim agents
+
+*To run UDP Broadcast or Unicast, edit the config file for the corresponding ports
+- run "nano imperium/config/orbs/jawbreaker/sitl/sitl.cfg.toml"
+- set enable_multicast_c2 to false to use broadcast or unicast
+
+###Communicating With Agents### 
+/*
+  Message is bidirectional supporting both sending commands to agents and
+  receiving status from agents
+*/
+message Message {
+        // populated by each agent
+        repeated Status status = 1;
+
+        // populated by tasking source
+        repeated Task task = 2;
+
+    // populated by teleoperation source
+        repeated TeleopCommand teleop_cmd = 3;
+}
+
+###Sending Task To Agents, send takeoff first###
+/*
+  Task contains information required for each agent to perform the requested task. The creator field
+  can be used by the agents to filter the taskign source and determine if the task is accepted.  The applies_to
+  field can be used as a filter to designate a single or multiple agents for the task. The task type specifics the
+  type of task, accompanied by the corresponding task specific parameters
+*/
+message Task {
+        // required: identifies the source of the task
+        string creator = 1;
+
+        // required: identifies the target for the task, e.g. set to {"jb_1", "jb_2"} to command agent 1 & 2 or {"jb_all"} for all agent
+        repeated string applies_to = 2;
+
+        // optional: creation time, can be used to reject expired tasking
+        uint64 ts_ms = 3;
+
+        // required: identifies the requsted task
+        TaskType task_type = 4;
+
+        // required: populate based on task type, exceptions are TASK_LAND, TASK_RETURN, and TASK_LAUNCH
+        Goto_Task_Params goto_task_params = 5;
+        Patrol_Task_Params patrol_task_params = 6;
+        Pulsate_Task_Params pulsate_task_params = 7;
+        Set_Rally_Pt_Task_Params set_rally_pt_task_params = 8;
+        Set_GeoFence_Task_Params set_geo_fence_task_params = 9;
+        Leader_Follow_Task_Params leader_follow_task_params = 10;
+        Formation_Task_Params formation_task_params = 11;
+        Distribute_Task_Params distribute_task_params = 12;
+        Remote_Steer_Task_Params remote_steer_task_params = 13;
+        Return_Task_Params return_task_params= 14;
+}
+
+###Receiving Telemetry###
+
+/*
+  Status contains comprehensive agent data such as task status, navigation state and
+  system health & status.  It is published by each agent.
+*/
+message Status {
+        // agent that created this status
+        string creator = 1;
+
+        // creation time based on agent time (ms time since epoch)
+        uint64 ts_ms = 2;
+
+        // navigation state (pos, vel, hdg etc.)
+        NavState nav_state = 3;
+
+        // platform health & status
+        VehicleState vehicle_state = 4;
+
+        // status of the current task
+        TaskState task_state = 5;
+
+        // type of platform
+        PlatformType platform_type = 6;
+}
+
