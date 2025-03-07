@@ -36,12 +36,20 @@ while True:
                 lon_d = status.nav_state.pos_lla.lon_d
                 alt_m = status.nav_state.pos_lla.alt_m
 
+                print(lat_d, lon_d)
+               
+
                 ax.cla()
                 ax.scatter(lon_d, lat_d, c='red', marker='o', label="Position")
-
+               
                 
                 ax.set_xlabel("Longitude")
                 ax.set_ylabel("Latitude")
+
+                # ax.set_ylim(39, 39.4)
+                # ax.set_xlim(-76.8, -77)
+
+                ax.annotate(alt_m, (lon_d, lat_d))
                 ax.set_title("Test")
 
                 ax.grid(True)
